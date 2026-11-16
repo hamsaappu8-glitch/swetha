@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phishing Website Detector</title>
+<style>
+body{margin:0;background:#f4f6fb;color:#1b2233;font-family:Arial,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px}
+.card{background:#fff;border:1px solid #d9deea;border-radius:14px;padding:16px;margin-bottom:14px}
+input{width:100%;box-sizing:border-box;padding:13px;font-size:16px;border:1px solid #d9deea;border-radius:10px}
+button{width:100%;margin-top:10px;padding:13px;font-size:16px;font-weight:bold;border:0;border-radius:10px;background:#2f5bea;color:#fff}
+.verdict{font-size:24px;font-weight:bold;margin:0}
+.bar{height:10px;border-radius:6px;background:#d9deea;margin:8px 0 12px}
+.bar div{height:100%;width:0;border-radius:6px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛡️ Phishing Website Detector</h1>
+  <p>Paste a link to check if it looks like phishing.</p>
+
+  <div class="card">
+    <input id="url" type="text" placeholder="https://example.com/login">
+    <button onclick="run()">Check URL</button>
+  </div>
+
+  <div id="out" class="card hidden">
+    <p id="verdict" class="verdict"></p>
+    <p id="score"></p>
+    <div class="bar"><div id="fill"></div></div>
+    <b>Why:</b>
+    <ul id="reasons"></ul>
+  </div>
+</div>
+
+<script>
+var KEYWORDS=["login","verify","update","secure","account","bank","paypal","password","free","gift","otp"];
+var SHORTENERS=["bit.ly","tinyurl.com","goo.gl","t.co"];
+var BADTLD=[".xyz",".top",".tk",".ml",".ga",".cf",".gq"];
+
+function check(raw){
+  var url=raw.trim(), score=0, reasons=[];
+  if(!/^https?:\/\//i.test(url)) url="http://"+url;
+  var host="";
+  try{ host=new URL(url).hostname.toLowerCase(); }catch(e){ return null; }
+  var low=url.toLowerCase();
+
+  if(url.length>75){score+=1;reasons.push("Very long URL");}
+  if(url.indexOf("@")>-1){score+=2;reasons.push("Contains @ symbol");}
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(host)){score+=3;reasons.push("Uses IP address instead of domain");}
+  if((host.match(/-/g)||[]).length>=2){score+=1;reasons.push("Many hyphens in domain");}
+  if((host.match(/\./g)||[]).length>=4){score+=2;reasons.push("Too many subdomains");}
+  if(!/^https:/i.test(url)){score+=1;reasons.push("No HTTPS");}
+  var found=KEYWORDS.filter(function(k){return low.indexOf(k)>-1;});
+  if(found.length){score+=2;reasons.push("Suspicious keywords: "+found.join(", "));}
+  if(SHORTENERS.some(function(s){return host.indexOf(s)>-1;})){score+=2;reasons.push("Shortened link");}
+  if(BADTLD.some(function(t){return host.endsWith(t);})){score+=1;reasons.push("Risky domain ending");}
+
+  var verdict = score>=5 ? "PHISHING" : score>=3 ? "SUSPICIOUS" : "SAFE";
+  return {verdict:verdict, score:score, reasons:reasons};
+}
+
+function run(){
+  var v=document.getElementById("url").value;
+  if(!v.trim()) return;
+  var r=check(v);
+  document.getElementById("out").classList.remove("hidden");
+  var vEl=document.getElementById("verdict");
+  var list=document.getElementById("reasons");
+  var fill=document.getElementById("fill");
+  list.innerHTML="";
+  if(!r){ vEl.textContent="Invalid URL"; return; }
+  var color = r.verdict=="PHISHING" ? "#d93636" : r.verdict=="SUSPICIOUS" ? "#d98a00" : "#1f9d55";
+  vEl.textContent = r.verdict;
+  vEl.style.color = color;
+  document.getElementById("score").textContent = "Risk score: "+r.score+" / 12";
+  fill.style.background = color;
+  fill.style.width = Math.min(100, r.score/12*100)+"%";
+  var items = r.reasons.length ? r.reasons : ["No risky patterns found"];
+  items.forEach(function(t){
+    var li=document.createElement("li");
+    li.textContent=t;
+    list.appendChild(li);
+  });
+}
+</script>
+</body>
+</html>
